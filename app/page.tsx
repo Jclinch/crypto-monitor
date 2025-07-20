@@ -1,103 +1,322 @@
+// "use client";
+
+// import { useState } from "react";
+// import useSWR from "swr";
+// import { fetchCoinGeckoPrices, CoinGeckoMarketCoin } from "@/lib/api";
+// import Image from "next/image";
+// import Link from "next/link";
+
+// const fetcher = (currency: "usd" | "ngn") => fetchCoinGeckoPrices(currency);
+
+// export default function HomePage() {
+//   const [currency, setCurrency] = useState<"usd" | "ngn">("usd");
+
+//   const {
+//     data: coins,
+//     isLoading,
+//     error,
+//   } = useSWR(["homepage_coins", currency], () => fetcher(currency), {
+//     refreshInterval: 30000,
+//   });
+
+//   if (isLoading) return <p>Loading top cryptocurrencies...</p>;
+//   if (error || !coins) return <p className="text-red-600">Failed to load data.</p>;
+
+//   const top10 = coins.slice(0, 10);
+
+//   return (
+//     <main className="p-6 text-gray-950 bg-[#e5e5e6]">
+//       <div className="flex items-center justify-between mb-4">
+//         <h1 className="text-3xl font-bold text-gray-900">Crypto Monitor</h1>
+//         <div className="space-x-2">
+//           <button
+//             onClick={() => setCurrency("usd")}
+//             className={`px-4 py-1 rounded-md text-sm border ${currency === "usd" ? "bg-blue-500 text-white" : "bg-white"}`}
+//           >
+//             USD
+//           </button>
+//           <button
+//             onClick={() => setCurrency("ngn")}
+//             className={`px-4 py-1 rounded-md text-sm border ${currency === "ngn" ? "bg-blue-500 text-white" : "bg-white"}`}
+//           >
+//             NGN
+//           </button>
+//         </div>
+//       </div>
+
+//       <div className="overflow-x-auto">
+//         <table className="min-w-full bg-white shadow-md rounded-lg">
+//           <thead className="bg-gray-100 text-sm">
+//             <tr>
+//               <th className="p-2 text-left">#</th>
+//               <th className="p-2 text-left">Coin</th>
+//               <th className="p-2 text-left">Price</th>
+//               <th className="p-2 text-left">% 24h</th>
+//             </tr>
+//           </thead>
+//           <tbody>
+//             {top10.map((coin: CoinGeckoMarketCoin) => (
+//               <tr key={coin.id} className="border-t text-sm hover:bg-gray-50">
+//                 <td className="p-2">{coin.market_cap_rank}</td>
+//                 <td className="p-2 flex items-center gap-2">
+//                   <Image
+//                     src={coin.image}
+//                     alt={coin.name}
+//                     width={20}
+//                     height={20}
+//                     className="rounded-full"
+//                   />
+//                   {coin.name} ({coin.symbol.toUpperCase()})
+//                 </td>
+//                 <td className="p-2">
+//                   {currency === "usd"
+//                     ? `$${coin.current_price.toLocaleString()}`
+//                     : `₦${Math.round(coin.current_price).toLocaleString()}`}
+//                 </td>
+//                 <td
+//                   className={`p-2 ${
+//                     coin.price_change_percentage_24h >= 0
+//                       ? "text-green-600"
+//                       : "text-red-600"
+//                   }`}
+//                 >
+//                   {coin.price_change_percentage_24h?.toFixed(2)}%
+//                 </td>
+//               </tr>
+//             ))}
+//           </tbody>
+//         </table>
+//       </div>
+
+//       <div className="mt-4 text-right">
+//         <Link
+//           href="/platforms/coingecko"
+//           className="text-blue-600 hover:underline text-sm"
+//         >
+//           View full market →
+//         </Link>
+//       </div>
+//     </main>
+//   );
+// }
+
+
+"use client";
+
+import { useState } from "react";
+import useSWR from "swr";
+import {
+  fetchCoinGeckoPrices,
+  fetchCryptoComparePrices,
+  fetchBinancePrices,
+  fetchUsdToNgnRate,
+  CoinGeckoMarketCoin,
+} from "@/lib/api";
 import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+type PlatformPriceMap = {
+  [symbol: string]: {
+    coingecko?: number;
+    coinmarketcap?: number;
+    cryptocompare?: number;
+    binance?: number;
+  };
+};
+
+const currencySymbol = {
+  usd: "$",
+  ngn: "₦",
+};
+
+export default function HomePage() {
+  const [currency, setCurrency] = useState<"usd" | "ngn">("usd");
+
+  const { data: geckoCoins, isLoading: gLoading } = useSWR(
+    ["homepage_coins", currency],
+    () => fetchCoinGeckoPrices(currency),
+    { refreshInterval: 30000 }
+  );
+
+  type CoinMarketCapCoin = {
+    symbol: string;
+    quote: {
+      USD: { price: number };
+      NGN?: { price: number };
+    };
+  };
+
+  const { data: cmcCoins } = useSWR(
+    "cmc_home",
+    async () => {
+      const res = await fetch("/api/coinmarketcap");
+      if (!res.ok) throw new Error("Failed to fetch CoinMarketCap data");
+      return res.json() as Promise<Array<CoinMarketCapCoin>>;
+    },
+    {
+      refreshInterval: 30000,
+    }
+  );
+
+  const { data: binanceData } = useSWR("binance_home", fetchBinancePrices, {
+    refreshInterval: 30000,
+  });
+
+  const { data: fxRate } = useSWR("usd_ngn", fetchUsdToNgnRate, {
+    refreshInterval: 60000,
+  });
+
+  const { data: ccPrices } = useSWR("cc_home", fetchCryptoComparePrices, {
+    refreshInterval: 30000,
+  });
+
+  const isLoading = gLoading || !geckoCoins;
+
+  if (isLoading) return <p>Loading top cryptocurrencies...</p>;
+  if (!geckoCoins) return <p className="text-red-600">Failed to load data.</p>;
+
+  const top10 = geckoCoins.slice(0, 10);
+
+  const merged: PlatformPriceMap = {};
+
+  for (const coin of top10) {
+    const symbol = coin.symbol.toUpperCase();
+    merged[symbol] = {
+      coingecko: coin.current_price,
+    };
+  }
+
+  if (cmcCoins) {
+    for (const coin of cmcCoins) {
+      const symbol = coin.symbol.toUpperCase();
+      if (merged[symbol]) {
+        merged[symbol].coinmarketcap =
+          currency === "usd" ? coin.quote.USD?.price : coin.quote.NGN?.price;
+      }
+    }
+  }
+
+  if (ccPrices) {
+    for (const symbol in ccPrices) {
+      const entry = ccPrices[symbol];
+      if (merged[symbol]) {
+        merged[symbol].cryptocompare =
+          currency === "usd" ? entry.USD : entry.NGN;
+      }
+    }
+  }
+
+  // ✅ FIX: Add Binance price per coin using fxRate conversion
+  if (binanceData) {
+  for (const symbol of Object.keys(merged)) {
+    if (currency === "usd") {
+      merged[symbol].binance = binanceData[symbol];
+    } else {
+      merged[symbol].binance = binanceData[`${symbol}_NGN`];
+    }
+  }
+}
+console.log("🔥 Binance Data:", binanceData);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="p-6 text-gray-950 bg-[#e5e5e6]">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Crypto Monitor</h1>
+        <div className="space-x-2">
+          <button
+            onClick={() => setCurrency("usd")}
+            className={`px-4 py-1 rounded-md text-sm border ${
+              currency === "usd" ? "bg-blue-500 text-white" : "bg-white"
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            USD
+          </button>
+          <button
+            onClick={() => setCurrency("ngn")}
+            className={`px-4 py-1 rounded-md text-sm border ${
+              currency === "ngn" ? "bg-blue-500 text-white" : "bg-white"
+            }`}
           >
-            Read our docs
-          </a>
+            NGN
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white shadow-md rounded-lg">
+          <thead className="bg-gray-100 text-sm">
+            <tr>
+              <th className="p-2 text-left">#</th>
+              <th className="p-2 text-left">Coin</th>
+              <th className="p-2 text-left">CoinGecko</th>
+              <th className="p-2 text-left">CoinMarketCap</th>
+              <th className="p-2 text-left">CryptoCompare</th>
+              <th className="p-2 text-left">Binance</th>
+              <th className="p-2 text-left">% 24h</th>
+            </tr>
+          </thead>
+          <tbody>
+            {top10.map((coin: CoinGeckoMarketCoin) => {
+              const symbol = coin.symbol.toUpperCase();
+              const priceSources = merged[symbol];
+
+              return (
+                <tr key={coin.id} className="border-t text-sm hover:bg-gray-50">
+                  <td className="p-2">{coin.market_cap_rank}</td>
+                  <td className="p-2 flex items-center gap-2">
+                    <Image
+                      src={coin.image}
+                      alt={coin.name}
+                      width={20}
+                      height={20}
+                      className="rounded-full"
+                    />
+                    {coin.name} ({symbol})
+                  </td>
+                  <td className="p-2">
+                    {priceSources?.coingecko
+                      ? `${currencySymbol[currency]}${priceSources.coingecko.toLocaleString()}`
+                      : "N/A"}
+                  </td>
+                  <td className="p-2">
+                    {priceSources?.coinmarketcap
+                      ? `${currencySymbol[currency]}${priceSources.coinmarketcap.toLocaleString()}`
+                      : "N/A"}
+                  </td>
+                  <td className="p-2">
+                    {priceSources?.cryptocompare
+                      ? `${currencySymbol[currency]}${priceSources.cryptocompare.toLocaleString()}`
+                      : "N/A"}
+                  </td>
+                  <td className="p-2">
+                    {priceSources?.binance
+                      ? `${currencySymbol[currency]}${priceSources.binance.toLocaleString()}`
+                      : "N/A"}
+                  </td>
+                  <td
+                    className={`p-2 ${
+                      coin.price_change_percentage_24h >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {coin.price_change_percentage_24h?.toFixed(2)}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 text-right">
+        <Link
+          href="/platforms/coingecko"
+          className="text-blue-600 hover:underline text-sm"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          View full market →
+        </Link>
+      </div>
+    </main>
   );
 }
