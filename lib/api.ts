@@ -113,56 +113,13 @@ export const fetchCryptoComparePrices = async (): Promise<
   }
 };
 
-// ➕ Binance: current prices for all trading pairs
-export interface BinanceTicker {
-  symbol: string;
-  price: string; // string format from Binance
-}
+// ➕ Binance: fetch from our API route
+// lib/api.ts
 
-// In lib/api.ts
-
-export const fetchBinancePrices = async (): Promise<Record<string, number>> => {
-  const fxRate = await fetchUsdToNgnRate(); // Dynamic USD → NGN rate
-  const url = "https://api.binance.com/api/v3/ticker/price";
-
-  try {
-    const res = await axios.get(url);
-    const allPrices = res.data as Array<{ symbol: string; price: string }>;
-
-    const symbols = [
-      "BTCUSDT",
-      "ETHUSDT",
-      "SOLUSDT",
-      "BNBUSDT",
-      "XRPUSDT",
-      "ADAUSDT",
-      "DOGEUSDT",
-      "MATICUSDT",
-      "TRXUSDT",
-      "DOTUSDT",
-      "USDT",
-      "USDC",
-      "BUSD",
-      "LINKUSDT",
-      "LTCUSDT",
-      "USDTUSDT",
-      "USDCUSDT",
-      "USDTSTETH",
-    ];
-    const prices: Record<string, number> = {};
-
-    for (const pair of symbols) {
-      const match = allPrices.find((p) => p.symbol === pair);
-      if (match) {
-        const coin = pair.replace("USDT", "");
-        prices[coin] = parseFloat(match.price);
-        prices[`${coin}_NGN`] = parseFloat(match.price) * fxRate;
-      }
-    }
-
-    return prices;
-  } catch (error) {
-    console.error("❌ Error fetching from Binance:", error);
-    return {};
-  }
+// Binance prices come from our own API route (no CORS issues)
+export const fetchBinancePrices = async (): Promise<Record<string, { USD: number; NGN: number }>> => {
+  const res = await fetch("/api/binance"); // ✅ call your API route
+  if (!res.ok) throw new Error("Failed to fetch Binance prices");
+  return res.json();
 };
+

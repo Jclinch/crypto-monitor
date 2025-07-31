@@ -5,6 +5,9 @@ const platforms = [
   { name: "CoinGecko", path: "/platforms/coingecko" },
   { name: "CoinMarketCap", path: "/platforms/coinmarketcap" },
   { name: "CryptoCompare", path: "/platforms/cryptocompare" },
+  { name: "Binance", path: "/platforms/binance" },
+  { name: "Calculator", path: "/platforms/calculator" },
+
 
 ];
 
