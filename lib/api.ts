@@ -1,3 +1,4 @@
+//lib\api.ts
 import axios, { AxiosError } from "axios";
 
 // 🔹 CoinGecko Market Coin Type

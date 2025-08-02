@@ -1,3 +1,4 @@
+//app\api\binance\route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { fetchUsdToNgnRate } from "@/lib/api";
