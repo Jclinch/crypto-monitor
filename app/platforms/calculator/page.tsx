@@ -4,7 +4,6 @@ import { useState } from "react";
 import useSWR from "swr";
 import { fetchCoinGeckoPrices, CoinGeckoMarketCoin } from "@/lib/api";
 
-// ✅ Vendor type (matches /api/fx/vendors return)
 type Vendor = {
   name: string;
   rate: number | null;
@@ -30,14 +29,13 @@ export default function CalculatorPage() {
     fetch("/api/fx/vendors").then((r) => r.json())
   );
 
-  if (!geckoCoins || !vendors) return <p>Loading…</p>;
+  if (!geckoCoins || !vendors) return <p className="p-6">Loading rates…</p>;
 
   const coin = geckoCoins.find(
     (c: CoinGeckoMarketCoin) => c.symbol.toUpperCase() === selectedCoin
   );
   const coinPriceUsd = coin?.current_price ?? 0;
 
-  // ✅ Build results
   const results: Result[] = vendors.map((v) => {
     if (!v.rate)
       return { vendor: v.name, display: "N/A", updated_at: v.updated_at };
@@ -48,7 +46,7 @@ export default function CalculatorPage() {
         vendor: v.name,
         display: `${amount} USD = ${cryptoAmt.toFixed(
           6
-        )} ${selectedCoin} @ ${v.name} (₦${v.rate}/$1)`,
+        )} ${selectedCoin} @ ${v.name} (₦${v.rate.toLocaleString()}/$1)`,
         updated_at: v.updated_at,
       };
     } else {
@@ -56,9 +54,9 @@ export default function CalculatorPage() {
       const cryptoAmt = usdAmt / coinPriceUsd;
       return {
         vendor: v.name,
-        display: `${amount} NGN = ${cryptoAmt.toFixed(
+        display: `${amount.toLocaleString()} NGN = ${cryptoAmt.toFixed(
           6
-        )} ${selectedCoin} @ ${v.name} (₦${v.rate}/$1)`,
+        )} ${selectedCoin} @ ${v.name} (₦${v.rate.toLocaleString()}/$1)`,
         updated_at: v.updated_at,
       };
     }

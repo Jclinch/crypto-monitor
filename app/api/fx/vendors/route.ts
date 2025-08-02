@@ -1,11 +1,6 @@
-//app\api\fx\vendors\route.ts
 import { NextResponse } from "next/server";
 import axios from "axios";
-// If supabase is a default export:
 import { supabase } from "@/lib/supabase";
-
-// If supabase is exported with a different name, use:
-// import { correctExportName } from "@/lib/supabase";
 
 export async function GET() {
   const results: any[] = [];
@@ -19,8 +14,11 @@ export async function GET() {
       name: "Wise",
       rate: wise.data.value,
       source: "wise.com",
+      updated_at: new Date().toISOString(),
     });
-  } catch (e) {}
+  } catch (e: any) {
+    console.error("Wise API error:", e.message);
+  }
 
   // ✅ OFX
   try {
@@ -32,17 +30,34 @@ export async function GET() {
       name: "OFX",
       rate: last.InterbankRate,
       source: "ofx.com",
+      updated_at: new Date().toISOString(),
     });
-  } catch (e) {}
+  } catch (e: any) {
+    console.error("OFX API error:", e.message);
+  }
 
-  // ✅ Scraped vendors (read from Supabase)
+  // ✅ Scraped vendors
   try {
     const { data, error } = await supabase
       .from("fx_vendors")
       .select("name, rate, source, updated_at")
       .order("updated_at", { ascending: false });
-    if (data) results.push(...data);
-  } catch (e) {}
 
-  return NextResponse.json(results);
+    if (error) throw error;
+    if (data) results.push(...data);
+  } catch (e: any) {
+    console.error("Supabase fetch error:", e.message);
+  }
+
+  // ✅ Remove duplicates (prefer freshest by updated_at)
+  const unique = Object.values(
+    results.reduce((acc: any, v: any) => {
+      if (!acc[v.name] || new Date(v.updated_at) > new Date(acc[v.name].updated_at)) {
+        acc[v.name] = v;
+      }
+      return acc;
+    }, {})
+  );
+
+  return NextResponse.json(unique);
 }
