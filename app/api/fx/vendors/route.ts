@@ -1,77 +1,6 @@
-// import { NextResponse } from "next/server";
-// import axios from "axios";
-// import { supabase } from "@/lib/supabase";
-// import { FxVendor } from "@/lib/types";
-
-// export async function GET() {
-//   const results: FxVendor[] = [];
-
-//   // ✅ Wise
-//   try {
-//     const wise = await axios.get<{ value: number }>(
-//       "https://wise.com/rates/live?source=USD&target=NGN"
-//     );
-//     results.push({
-//       name: "Wise",
-//       rate: wise.data.value,
-//       source: "wise.com",
-//       updated_at: new Date().toISOString(),
-//     });
-//   } catch (e) {
-//     console.error("Wise API error:", e);
-//   }
-
-//   // ✅ OFX
-//   try {
-//     const ofx = await axios.get<{
-//       HistoricalPoints: { InterbankRate: number }[];
-//     }>(
-//       "https://api.ofx.com/PublicSite.ApiService/SpotRateHistory?baseCurrency=USD&termCurrency=NGN&period=day"
-//     );
-//     const last = ofx.data.HistoricalPoints.at(-1);
-//     if (last) {
-//       results.push({
-//         name: "OFX",
-//         rate: last.InterbankRate,
-//         source: "ofx.com",
-//         updated_at: new Date().toISOString(),
-//       });
-//     }
-//   } catch (e) {
-//     console.error("OFX API error:", e);
-//   }
-
-//   // ✅ Supabase scraped vendors
-//   try {
-//     const { data, error } = await supabase
-//       .from("fx_vendors")
-//       .select("name, rate, source, updated_at")
-//       .order("updated_at", { ascending: false });
-
-//     if (error) throw error;
-//     if (data) results.push(...(data as FxVendor[]));
-//   } catch (e) {
-//     console.error("Supabase fetch error:", e);
-//   }
-
-//   // ✅ Deduplicate by vendor name, keep freshest
-//   const unique: FxVendor[] = Object.values(
-//     results.reduce<Record<string, FxVendor>>((acc, v) => {
-//       if (
-//         !acc[v.name] ||
-//         (v.updated_at &&
-//           new Date(v.updated_at) > new Date(acc[v.name].updated_at ?? 0))
-//       ) {
-//         acc[v.name] = v;
-//       }
-//       return acc;
-//     }, {})
-//   );
-
-//   return NextResponse.json(unique);
-// }
 
 
+//app\api\fx\vendors\route.ts
 
 import { NextResponse } from "next/server";
 import axios from "axios";
@@ -96,25 +25,25 @@ export async function GET() {
     console.error("❌ Wise API failed", e);
   }
 
-  // ✅ OFX (direct API)
-  try {
-    const ofx = await axios.get<{
-      HistoricalPoints: { InterbankRate: number }[];
-    }>(
-      "https://api.ofx.com/PublicSite.ApiService/SpotRateHistory?baseCurrency=USD&termCurrency=NGN&period=day"
-    );
-    const last = ofx.data.HistoricalPoints.at(-1);
-    if (last) {
-      results.push({
-        name: "OFX",
-        rate: last.InterbankRate,
-        source: "ofx.com",
-        updated_at: new Date().toISOString(),
-      });
-    }
-  } catch (e) {
-    console.error("❌ OFX API failed", e);
-  }
+//   // ✅ OFX (direct API)
+//  // ...existing code...
+// try {
+//   const ofx = await axios.get<{
+//     HistoricalPoints: { InterbankRate: number }[];
+//   }>(
+//     "https://api.ofx.com/PublicSite.ApiService/SpotRateHistory?baseCurrency=USD&termCurrency=NGN&period=day"
+//   );
+//   // Use ofx data here, or remove the variable if not needed
+//   // Example:
+//   // const rates = ofx.data.HistoricalPoints;
+// } catch (error: unknown) {
+//   if (axios.isAxiosError(error) && error.response?.status === 404) {
+//     console.error("OFX API endpoint not found (404).");
+//   } else {
+//     console.error("OFX API failed", error);
+//   }
+// }
+// // ...existing code...
 
   // ✅ Scraped vendors from Supabase (AbokiFX, Skrill, Western Union, etc.)
   try {
